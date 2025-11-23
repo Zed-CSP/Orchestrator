@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.cache/node.tsbuildinfo",
+    "module": "Node16",
+    "moduleResolution": "node16",
+    "target": "ES2021",
+    "lib": ["ES2021", "DOM"],
+    "types": ["node"],
+    "strict": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["vite.config.ts"]
+}

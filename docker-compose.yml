@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: palatial
+      POSTGRES_PASSWORD: palatial
+      POSTGRES_DB: palatial
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://palatial:palatial@db:5432/palatial
+      MAX_CONCURRENT_RUNS: ${MAX_CONCURRENT_RUNS:-1}
+      WORKER_MIN_SECONDS: ${WORKER_MIN_SECONDS:-5}
+      WORKER_MAX_SECONDS: ${WORKER_MAX_SECONDS:-15}
+      WORKER_SUCCESS_RATE: ${WORKER_SUCCESS_RATE:-0.85}
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://backend:8000}
+    depends_on:
+      - backend
+    ports:
+      - "4173:80"
+
+volumes:
+  db-data:
