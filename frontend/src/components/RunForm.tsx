@@ -1,3 +1,4 @@
+// Controlled form for creating new simulation runs.
 import { useMemo, useState } from "react";
 
 const SAMPLE_CONFIG = {
@@ -10,6 +11,9 @@ interface RunFormProps {
   onCreate: (config: Record<string, unknown>) => Promise<void>;
 }
 
+/**
+ * Collects JSON config plus preset helpers before queueing a new run.
+ */
 export function RunForm({ onCreate }: RunFormProps) {
   const [rawConfig, setRawConfig] = useState(
     JSON.stringify(SAMPLE_CONFIG, null, 2)

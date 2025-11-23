@@ -1,3 +1,4 @@
+// Shared TypeScript types that mirror backend models/schemas.
 export type RunStatus =
   | "pending"
   | "running"

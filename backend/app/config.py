@@ -1,8 +1,12 @@
+"""Configuration helpers for loading orchestrator settings from env vars."""
+
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """Container for all runtime configuration toggles."""
+
     database_url: str = Field(
         default="sqlite+aiosqlite:///./palatial.db",
         validation_alias=AliasChoices("DATABASE_URL", "database_url"),
@@ -29,6 +33,7 @@ class Settings(BaseSettings):
     @field_validator("worker_max_seconds")
     @classmethod
     def validate_worker_window(cls, v: int, info):
+        """Ensure max worker duration is not lower than the min duration."""
         min_seconds = info.data.get("worker_min_seconds", 1)
         if v < min_seconds:
             raise ValueError("WORKER_MAX_SECONDS must be >= WORKER_MIN_SECONDS")
@@ -37,6 +42,7 @@ class Settings(BaseSettings):
     @field_validator("worker_success_rate")
     @classmethod
     def clamp_success_rate(cls, v: float) -> float:
+        """Guarantee success rate stays within a 0 to 1 (exclusive-inclusive) range."""
         if not 0.0 < v <= 1.0:
             raise ValueError("WORKER_SUCCESS_RATE must be between 0 and 1")
         return v

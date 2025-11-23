@@ -1,8 +1,12 @@
+// Minimal fetch client for interacting with the FastAPI backend.
 import type { SimulationRun, WorkerStatus } from "./types";
 
 const RAW_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 const API_BASE_URL = RAW_BASE_URL.replace(/\/$/, "");
 
+/**
+ * Wrapper around fetch with JSON parsing and error normalization.
+ */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {

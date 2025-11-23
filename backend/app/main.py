@@ -64,11 +64,13 @@ OrchestratorDep = Annotated[SimulationOrchestrator, Depends(get_orchestrator)]
 
 @app.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
+    """Simple heartbeat endpoint for Docker/Compose health checks."""
     return HealthResponse()
 
 
 @app.get("/runs", response_model=list[SimulationRunRead])
 async def list_runs(session: SessionDep) -> list[SimulationRunRead]:
+    """Return all runs ordered by most recent first."""
     stmt = select(SimulationRun).order_by(SimulationRun.created_at.desc())
     result = await session.execute(stmt)
     return list(result.scalars().all())
@@ -76,6 +78,7 @@ async def list_runs(session: SessionDep) -> list[SimulationRunRead]:
 
 @app.get("/runs/{run_id}", response_model=SimulationRunRead)
 async def get_run(run_id: UUID, session: SessionDep) -> SimulationRunRead:
+    """Retrieve a specific run by ID."""
     run = await session.get(SimulationRun, str(run_id))
     if not run:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
@@ -86,12 +89,14 @@ async def get_run(run_id: UUID, session: SessionDep) -> SimulationRunRead:
 async def create_run(
     payload: SimulationRunCreate, orchestrator: OrchestratorDep
 ) -> SimulationRunRead:
+    """Queue a new simulation run with the supplied config payload."""
     run = await orchestrator.enqueue_run(payload.config)
     return run
 
 
 @app.post("/runs/{run_id}/cancel", response_model=SimulationRunRead)
 async def cancel_run(run_id: UUID, orchestrator: OrchestratorDep) -> SimulationRunRead:
+    """Cancel a pending or running job."""
     run = await orchestrator.cancel_run(run_id)
     if not run:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
@@ -100,6 +105,7 @@ async def cancel_run(run_id: UUID, orchestrator: OrchestratorDep) -> SimulationR
 
 @app.post("/runs/{run_id}/restart", response_model=SimulationRunRead)
 async def restart_run(run_id: UUID, orchestrator: OrchestratorDep) -> SimulationRunRead:
+    """Move a finished/canceled run back to the pending queue."""
     run = await orchestrator.restart_run(run_id)
     if not run:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
@@ -113,6 +119,7 @@ async def restart_run(run_id: UUID, orchestrator: OrchestratorDep) -> Simulation
 
 @app.get("/workers", response_model=list[WorkerStatus])
 async def list_workers(orchestrator: OrchestratorDep) -> list[WorkerStatus]:
+    """Expose the current worker pool utilization."""
     return orchestrator.get_worker_statuses()
 
 
@@ -120,6 +127,7 @@ async def list_workers(orchestrator: OrchestratorDep) -> list[WorkerStatus]:
 async def delete_run(
     run_id: UUID, orchestrator: OrchestratorDep, session: SessionDep
 ) -> Response:
+    """Delete a run entirely, canceling it first if necessary."""
     run = await session.get(SimulationRun, str(run_id))
     if not run:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")

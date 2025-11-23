@@ -1,3 +1,4 @@
+// Sortable table for displaying simulation runs and controlling actions.
 import type { SimulationRun } from "../types";
 
 interface RunsTableProps {
@@ -38,6 +39,9 @@ const formatDuration = (seconds?: number | null) => {
   return `${seconds.toFixed(1)}s`;
 };
 
+/**
+ * Renders the main runs table and exposes interactions (view, cancel, etc.).
+ */
 export function RunsTable({
   runs,
   sortOption,

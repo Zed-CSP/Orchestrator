@@ -18,6 +18,7 @@ logger = logging.getLogger("palatial.orchestrator")
 
 
 class SimulationOrchestrator:
+    """In-memory orchestrator that enforces worker pool capacity and scheduling."""
     def __init__(
         self,
         session_factory: async_sessionmaker[AsyncSession],
@@ -59,6 +60,7 @@ class SimulationOrchestrator:
         await self.try_start_runs()
 
     async def enqueue_run(self, config: dict[str, Any]) -> SimulationRun:
+        """Persist a new pending run and immediately attempt to schedule it."""
         async with self._session_factory() as session:
             run = SimulationRun(config=config)
             run.append_log("Run created and queued")
@@ -69,6 +71,7 @@ class SimulationOrchestrator:
         return run
 
     async def cancel_run(self, run_id: UUID | str) -> SimulationRun | None:
+        """Cancel a pending/running run and free its worker if necessary."""
         run_identifier = self._normalize_id(run_id)
         async with self._session_factory() as session:
             run = await session.get(SimulationRun, run_identifier)
@@ -90,6 +93,7 @@ class SimulationOrchestrator:
         return run
 
     async def restart_run(self, run_id: UUID | str) -> SimulationRun | None:
+        """Return a finished run to the pending queue for re-execution."""
         run_identifier = self._normalize_id(run_id)
         async with self._session_factory() as session:
             run = await session.get(SimulationRun, run_identifier)
@@ -108,12 +112,14 @@ class SimulationOrchestrator:
         return run
 
     async def list_all_runs(self) -> list[SimulationRun]:
+        """Fetch every run in the system, ordered newest first."""
         async with self._session_factory() as session:
             stmt = select(SimulationRun).order_by(SimulationRun.created_at.desc())
             result = await session.execute(stmt)
             return result.scalars().all()
 
     async def try_start_runs(self) -> None:
+        """Pull pending runs while workers are available and spawn worker tasks."""
         async with self._lock:
             available_workers = self._available_workers()
             if not available_workers:
@@ -144,12 +150,14 @@ class SimulationOrchestrator:
                     self._running[run.id] = task
 
     async def shutdown(self) -> None:
+        """Cancel all running tasks—used during FastAPI shutdown."""
         for task in list(self._running.values()):
             task.cancel()
         await asyncio.gather(*self._running.values(), return_exceptions=True)
         self._running.clear()
 
     async def _simulate_run(self, run_id: str, worker_id: str) -> None:
+        """Mock a worker doing work by sleeping for a randomized duration."""
         duration = random.uniform(self.worker_min_seconds, self.worker_max_seconds)
         try:
             await asyncio.sleep(duration)
@@ -160,11 +168,13 @@ class SimulationOrchestrator:
             raise
 
     def _handle_worker_done(self, run_id: str) -> None:
+        """Called when a task completes; frees worker and drains queue."""
         self._running.pop(run_id, None)
         self._release_worker(run_id)
         asyncio.create_task(self.try_start_runs())
 
     async def _complete_run(self, run_id: str, worker_id: str, status: RunStatus) -> None:
+        """Mark the run as finished with the provided status."""
         async with self._session_factory() as session:
             run = await session.get(SimulationRun, run_id)
             if not run:
@@ -177,6 +187,7 @@ class SimulationOrchestrator:
             await session.commit()
 
     async def _mark_worker_cancelled(self, run_id: str, worker_id: str) -> None:
+        """Record cancellation when a worker task is aborted."""
         async with self._session_factory() as session:
             run = await session.get(SimulationRun, run_id)
             if not run:
@@ -191,18 +202,22 @@ class SimulationOrchestrator:
             await session.commit()
 
     def _available_workers(self) -> list[str]:
+        """Return IDs for all workers not currently assigned."""
         return [worker_id for worker_id, assigned in self._workers.items() if assigned is None]
 
     def _assign_worker(self, worker_id: str, run_id: str) -> None:
+        """Bind a worker to a run and track the relationship."""
         self._workers[worker_id] = run_id
         self._run_workers[run_id] = worker_id
 
     def _release_worker(self, run_id: str) -> None:
+        """Free the worker currently tied to the given run."""
         worker_id = self._run_workers.pop(run_id, None)
         if worker_id:
             self._workers[worker_id] = None
 
     async def _reset_workers(self) -> None:
+        """Set every worker back to the idle state—used on startup recovery."""
         for worker_id in list(self._workers.keys()):
             self._workers[worker_id] = None
         self._run_workers.clear()

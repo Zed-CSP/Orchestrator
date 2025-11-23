@@ -1,9 +1,13 @@
+// Sidebar list showing the simulated worker pool and their assignments.
 import type { WorkerStatus } from "../types";
 
 interface WorkerPanelProps {
   workers: WorkerStatus[];
 }
 
+/**
+ * Lists every worker with a busy/idle tag and the run it is executing.
+ */
 export function WorkerPanel({ workers }: WorkerPanelProps) {
   if (workers.length === 0) {
     return null;

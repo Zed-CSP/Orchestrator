@@ -1,8 +1,12 @@
+// Hook for polling the worker status endpoint to power the sidebar view.
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "../api";
 import type { WorkerStatus } from "../types";
 
+/**
+ * Fetch worker pool state on an interval so the UI stays in sync with the backend.
+ */
 export function useWorkers(pollMs = 4000) {
   const [workers, setWorkers] = useState<WorkerStatus[]>([]);
   const [error, setError] = useState<string | null>(null);

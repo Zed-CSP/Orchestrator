@@ -1,3 +1,4 @@
+// Root React application shell for the Palatial dashboard.
 import { useEffect, useMemo, useState } from "react";
 
 import { api, API_BASE_URL } from "./api";
@@ -23,6 +24,9 @@ type SortOption =
 
 type SidebarTab = "run" | "workers";
 
+/**
+ * Root React component that wires together data hooks, layout, and modal state.
+ */
 function App() {
   const { runs, loading, error, lastUpdated, refresh } = useRuns();
   const { workers } = useWorkers();

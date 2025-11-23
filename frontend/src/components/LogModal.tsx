@@ -1,3 +1,4 @@
+// Modal that surfaces detailed metadata plus log/config content for a run.
 import { useMemo, useState } from "react";
 
 import type { SimulationRun } from "../types";
@@ -9,6 +10,9 @@ interface LogModalProps {
 
 type ModalTab = "log" | "config";
 
+/**
+ * Modal dialog allowing the operator to inspect log output or the submitted config.
+ */
 export function LogModal({ run, onClose }: LogModalProps) {
   const [tab, setTab] = useState<ModalTab>("log");
   const prettyConfig = useMemo(() => JSON.stringify(run.config, null, 2), [run.config]);

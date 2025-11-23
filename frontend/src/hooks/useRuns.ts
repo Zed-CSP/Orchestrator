@@ -1,8 +1,12 @@
+// Polling hook that keeps the run list in sync with the backend.
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "../api";
 import type { SimulationRun } from "../types";
 
+/**
+ * Fetch and poll the runs endpoint, returning state + a manual refresh helper.
+ */
 export function useRuns(pollMs = 4000) {
   const [runs, setRuns] = useState<SimulationRun[]>([]);
   const [loading, setLoading] = useState(true);

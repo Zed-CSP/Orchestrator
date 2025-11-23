@@ -13,6 +13,7 @@ from .database import Base
 
 
 class RunStatus(str, enum.Enum):
+    """Lifecycle phases a simulation run can inhabit."""
     PENDING = "pending"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
@@ -21,6 +22,7 @@ class RunStatus(str, enum.Enum):
 
 
 class SimulationRun(Base):
+    """Persistent representation of a queue entry + execution metadata."""
     __tablename__ = "simulation_runs"
 
     id: Mapped[str] = mapped_column(
@@ -39,6 +41,7 @@ class SimulationRun(Base):
     log: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
     def append_log(self, message: str) -> None:
+        """Append a timestamped log line to the run's log buffer."""
         timestamp = datetime.utcnow().isoformat() + "Z"
         prefix = f"[{timestamp}] "
         self.log = f"{self.log}\n{prefix}{message}".strip()
