@@ -16,3 +16,9 @@ export interface SimulationRun {
   duration_seconds?: number | null;
   log: string;
 }
+
+export interface WorkerStatus {
+  worker_id: string;
+  busy: boolean;
+  run_id: string | null;
+}

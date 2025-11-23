@@ -40,3 +40,9 @@ class SimulationRunList(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str = "ok"
+
+
+class WorkerStatus(BaseModel):
+    worker_id: str
+    busy: bool
+    run_id: str | None

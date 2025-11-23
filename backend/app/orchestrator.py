@@ -34,10 +34,14 @@ class SimulationOrchestrator:
         self.worker_success_rate = worker_success_rate
         self._lock = asyncio.Lock()
         self._running: dict[str, asyncio.Task[None]] = {}
-        self._worker_index = 0
+        self._workers: dict[str, str | None] = {
+            f"worker-{i + 1:03d}": None for i in range(max(self.max_concurrent_runs, 1))
+        }
+        self._run_workers: dict[str, str] = {}
 
     async def recover(self) -> None:
         """Reset runs that were mid-flight when the API restarted."""
+        await self._reset_workers()
         async with self._session_factory() as session:
             stmt: Select[SimulationRun] = select(SimulationRun).where(
                 SimulationRun.status == RunStatus.RUNNING
@@ -111,28 +115,31 @@ class SimulationOrchestrator:
 
     async def try_start_runs(self) -> None:
         async with self._lock:
-            available_slots = self.max_concurrent_runs - len(self._running)
-            if available_slots <= 0:
+            available_workers = self._available_workers()
+            if not available_workers:
                 return
             async with self._session_factory() as session:
                 stmt = (
                     select(SimulationRun)
                     .where(SimulationRun.status == RunStatus.PENDING)
                     .order_by(SimulationRun.created_at)
-                    .limit(available_slots)
+                    .limit(len(available_workers))
                 )
                 result = await session.execute(stmt)
                 to_start = result.scalars().all()
                 if not to_start:
                     return
-                for run in to_start:
+                for index, run in enumerate(to_start):
+                    worker_id = available_workers[index]
                     run.status = RunStatus.RUNNING
-                    run.worker_id = self._next_worker_id()
+                    run.worker_id = worker_id
                     run.started_at = datetime.now(timezone.utc)
                     run.append_log(f"Started on {run.worker_id}")
                 await session.commit()
                 for run in to_start:
-                    task = asyncio.create_task(self._simulate_run(run.id, run.worker_id or "worker"))
+                    assigned_worker = run.worker_id or "worker"
+                    self._assign_worker(assigned_worker, run.id)
+                    task = asyncio.create_task(self._simulate_run(run.id, assigned_worker))
                     task.add_done_callback(lambda t, run_id=run.id: self._handle_worker_done(run_id))
                     self._running[run.id] = task
 
@@ -154,6 +161,7 @@ class SimulationOrchestrator:
 
     def _handle_worker_done(self, run_id: str) -> None:
         self._running.pop(run_id, None)
+        self._release_worker(run_id)
         asyncio.create_task(self.try_start_runs())
 
     async def _complete_run(self, run_id: str, worker_id: str, status: RunStatus) -> None:
@@ -182,9 +190,33 @@ class SimulationOrchestrator:
                 run.append_log(f"Worker {worker_id} acknowledged cancellation")
             await session.commit()
 
-    def _next_worker_id(self) -> str:
-        self._worker_index += 1
-        return f"worker-{self._worker_index:04d}"
+    def _available_workers(self) -> list[str]:
+        return [worker_id for worker_id, assigned in self._workers.items() if assigned is None]
+
+    def _assign_worker(self, worker_id: str, run_id: str) -> None:
+        self._workers[worker_id] = run_id
+        self._run_workers[run_id] = worker_id
+
+    def _release_worker(self, run_id: str) -> None:
+        worker_id = self._run_workers.pop(run_id, None)
+        if worker_id:
+            self._workers[worker_id] = None
+
+    async def _reset_workers(self) -> None:
+        for worker_id in list(self._workers.keys()):
+            self._workers[worker_id] = None
+        self._run_workers.clear()
+
+    def get_worker_statuses(self) -> list[dict[str, str | bool | None]]:
+        """Return a snapshot of worker utilization."""
+        return [
+            {
+                "worker_id": worker_id,
+                "busy": assigned_run is not None,
+                "run_id": assigned_run,
+            }
+            for worker_id, assigned_run in self._workers.items()
+        ]
 
     @staticmethod
     def _normalize_id(run_id: UUID | str) -> str:

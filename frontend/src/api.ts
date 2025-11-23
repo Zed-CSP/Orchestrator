@@ -1,4 +1,4 @@
-import type { SimulationRun } from "./types";
+import type { SimulationRun, WorkerStatus } from "./types";
 
 const RAW_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 const API_BASE_URL = RAW_BASE_URL.replace(/\/$/, "");
@@ -35,6 +35,12 @@ export const api = {
   },
   restartRun(runId: string): Promise<SimulationRun> {
     return request<SimulationRun>(`/runs/${runId}/restart`, { method: "POST" });
+  },
+  deleteRun(runId: string): Promise<void> {
+    return request<void>(`/runs/${runId}`, { method: "DELETE" });
+  },
+  listWorkers(): Promise<WorkerStatus[]> {
+    return request<WorkerStatus[]>(`/workers`);
   },
 };
 

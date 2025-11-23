@@ -69,6 +69,7 @@ docker compose up --build
 - `GET /runs/{id}` – fetch a single run.
 - `POST /runs/{id}/cancel` – cancel a pending/running run (idempotent).
 - `POST /runs/{id}/restart` – reset a finished/canceled run to pending.
+- `DELETE /runs/{id}` – cancel if necessary and remove the run permanently.
 - `GET /health` – readiness probe.
 
 Runs persist to the database. The orchestrator uses async SQLAlchemy sessions plus an in-memory task map to decide what to execute next. When a worker finishes (or is canceled) it immediately drains the next pending job, keeping utilization high without polling.

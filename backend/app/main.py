@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +15,12 @@ from .config import settings
 from .database import SessionLocal, get_session, init_db
 from .models import RunStatus, SimulationRun
 from .orchestrator import SimulationOrchestrator
-from .schemas import HealthResponse, SimulationRunCreate, SimulationRunRead
+from .schemas import (
+    HealthResponse,
+    SimulationRunCreate,
+    SimulationRunRead,
+    WorkerStatus,
+)
 
 
 @asynccontextmanager
@@ -104,3 +109,23 @@ async def restart_run(run_id: UUID, orchestrator: OrchestratorDep) -> Simulation
             detail="Cannot restart a running job",
         )
     return run
+
+
+@app.get("/workers", response_model=list[WorkerStatus])
+async def list_workers(orchestrator: OrchestratorDep) -> list[WorkerStatus]:
+    return orchestrator.get_worker_statuses()
+
+
+@app.delete("/runs/{run_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_run(
+    run_id: UUID, orchestrator: OrchestratorDep, session: SessionDep
+) -> Response:
+    run = await session.get(SimulationRun, str(run_id))
+    if not run:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
+    if run.status in (RunStatus.PENDING, RunStatus.RUNNING):
+        await orchestrator.cancel_run(run_id)
+        await session.refresh(run)
+    await session.delete(run)
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

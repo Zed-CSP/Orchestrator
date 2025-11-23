@@ -2,10 +2,21 @@ import type { SimulationRun } from "../types";
 
 interface RunsTableProps {
   runs: SimulationRun[];
+  sortOption: SortOption;
+  onSortChange: (option: SortOption) => void;
   onCancel: (runId: string) => Promise<void> | void;
   onRestart: (runId: string) => Promise<void> | void;
+  onDelete: (runId: string) => Promise<void> | void;
+  onViewLog: (run: SimulationRun) => void;
   busyRunId: string | null;
 }
+
+type SortOption =
+  | "created_desc"
+  | "created_asc"
+  | "status"
+  | "duration_desc"
+  | "duration_asc";
 
 const STATUS_LABELS: Record<SimulationRun["status"], string> = {
   pending: "Pending",
@@ -27,7 +38,16 @@ const formatDuration = (seconds?: number | null) => {
   return `${seconds.toFixed(1)}s`;
 };
 
-export function RunsTable({ runs, onCancel, onRestart, busyRunId }: RunsTableProps) {
+export function RunsTable({
+  runs,
+  sortOption,
+  onSortChange,
+  onCancel,
+  onRestart,
+  onDelete,
+  onViewLog,
+  busyRunId,
+}: RunsTableProps) {
   if (runs.length === 0) {
     return (
       <div className="card">
@@ -38,6 +58,19 @@ export function RunsTable({ runs, onCancel, onRestart, busyRunId }: RunsTablePro
 
   return (
     <div className="card runs-card">
+      <div className="runs-header">
+        <h2>Simulation Runs</h2>
+        <label className="sort-control">
+          <span>Sort by</span>
+          <select value={sortOption} onChange={(event) => onSortChange(event.target.value as SortOption)}>
+            <option value="created_desc">Newest first</option>
+            <option value="created_asc">Oldest first</option>
+            <option value="status">Status</option>
+            <option value="duration_desc">Longest duration</option>
+            <option value="duration_asc">Shortest duration</option>
+          </select>
+        </label>
+      </div>
       <div className="table-wrapper">
         <table>
           <thead>
@@ -56,7 +89,11 @@ export function RunsTable({ runs, onCancel, onRestart, busyRunId }: RunsTablePro
               const canRestart = ["failed", "succeeded", "canceled"].includes(run.status);
               const isBusy = busyRunId === run.id;
               return (
-                <tr key={run.id}>
+                <tr
+                  key={run.id}
+                  className="run-row"
+                  onClick={() => onViewLog(run)}
+                >
                   <td>
                     <div className="run-meta">
                       <span className={statusClassName(run.status)}>
@@ -92,7 +129,7 @@ export function RunsTable({ runs, onCancel, onRestart, busyRunId }: RunsTablePro
                   <td>
                     <pre className="log-block">{run.log || "—"}</pre>
                   </td>
-                  <td>
+                  <td onClick={(event) => event.stopPropagation()}>
                     <div className="actions">
                       <button
                         onClick={() => {
@@ -109,6 +146,15 @@ export function RunsTable({ runs, onCancel, onRestart, busyRunId }: RunsTablePro
                         disabled={!canRestart || isBusy}
                       >
                         Restart
+                      </button>
+                      <button
+                        className="danger"
+                        onClick={() => {
+                          void onDelete(run.id);
+                        }}
+                        disabled={isBusy}
+                      >
+                        Delete
                       </button>
                     </div>
                   </td>
