@@ -4,8 +4,8 @@ A simulated MVP for queueing, running, and monitoring heavy robotics simulations
 
 ## Table of Contents
 1. [Repository layout](#repository-layout)
-2. [Running locally (without Docker)](#running-locally-without-docker)
-3. [Running in Docker Compose (API + DB + UI)](#running-in-docker-compose-api--db--ui)
+2. [Running in Docker Compose (API + DB + UI)](#running-in-docker-compose-api--db--ui)
+3. [Running locally (without Docker)](#running-locally-without-docker)
 4. [Key environment variables](#key-environment-variables)
 5. [API surface](#api-surface)
 6. [Frontend features](#frontend-features)
