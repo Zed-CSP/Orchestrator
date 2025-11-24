@@ -12,7 +12,6 @@ A simulated MVP for queueing, running, and monitoring heavy robotics simulations
 7. [Screenshots](#screenshots)
 8. [README Q&A](#readme-qa)
 9. [Testing / validation](#testing--validation)
-10. [Future improvements](#future-improvements)
 
 ## Repository layout
 
@@ -99,6 +98,10 @@ Runs persist to the database. The orchestrator uses async SQLAlchemy sessions pl
 | Worker details modal | Run log modal |
 | ![Dark dashboard](docs/assets/Screenshot%202025-11-23%20at%204.21.56 PM.png) | ![Worker panel](docs/assets/Screenshot%202025-11-23%20at%204.17.43 PM.png) |
 
+## Testing / validation
+- Frontend: `npm run build` runs `tsc -b` plus a Vite production build (already run).
+- Backend: start `uvicorn` and exercise endpoints (e.g., via curl or the React UI). Because the worker execution is deterministic for concurrency, you can tweak env vars to emulate slower/faster runs.
+
 # README Q&A
 
 ## 1. AI usage
@@ -115,8 +118,8 @@ At scale, the orchestrator needs to evolve into a distributed system with a clea
 
 ### Scheduling and Locking
 - Each worker takes ownership of a job using:
--- Postgres advisory locks, or
--- 'SELECT … FOR UPDATE SKIP LOCKED' to prevent double assignment.
+  - Postgres advisory locks, or
+  - `SELECT … FOR UPDATE SKIP LOCKED` to prevent double assignment.
 - Workers periodically heartbeat a leased_at timestamp; if heartbeats stop, a supervisor resets the run to pending and requeues it.
 - The system enforces idempotent job execution, so retrying a job after a crash is safe.
 
@@ -136,17 +139,26 @@ At scale, the orchestrator needs to evolve into a distributed system with a clea
 Overall, this style of system would become highly elastic, resilient to worker failures, and capable of coordinating thousands of concurrent GPU simulations across multiple AWS regions.
 
 ## 3. Streaming Isaac Sim video securely
-- **Transport**: Use WebRTC for low-latency, encrypted media. Each simulation worker runs a lightweight SFU/agent that publishes the video stream. Control messages (offer/answer, ICE) flow through the orchestrator/API.
-- **Networking**: Workers sit in private subnets. A turn/stun cluster (Coturn) with AWS Global Accelerator terminates user connectivity and relays traffic when direct peer-to-peer isn’t possible. The orchestrator generates short-lived tokens (per run) that authorize a user to connect to exactly one worker stream via WebRTC data channels.
-- **Routing**: When a user opens the dashboard, it calls the API, which returns the worker’s signaling endpoint + token. The frontend initiates a WebRTC offer to a regional signaling service (gRPC/WebSocket). That service forwards to the proper worker (over a secure service mesh like AWS App Mesh or Istio) and the worker responds with an answer. Media flows directly (or via TURN) so the video never transits the API servers, keeping latency and cost low.
-- **Observability**: Use metrics (RTT, bitrate) from WebRTC stats and feed them back into the orchestrator to detect degradations and possibly migrate streams.
+To deliver low-latency, secure, real-time video from a simulation running on a GPU worker, I would use a WebRTC-based architecture.
 
-## Testing / validation
-- Frontend: `npm run build` runs `tsc -b` plus a Vite production build (already run).
-- Backend: start `uvicorn` and exercise endpoints (e.g., via curl or the React UI). Because the worker execution is deterministic for concurrency, you can tweak env vars to emulate slower/faster runs.
+### Transport & Protocols:
+- WebRTC for end-to-end encrypted, low-latency streaming of 3D-rendered video frames.
+  - WebRTC is ideal because it handles NAT traversal, bandwidth adaptation, and real-time video codecs out of the box.
+- TURN/STUN (e.g., Coturn) supports relay when direct worker ↔ browser connectivity isn’t possible.
 
-## Future improvements
-- Persist structured logs (JSON) and emit WebSocket events for truly live updates instead of polling.
-- Add authentication + role-based permissions for run control.
-- Introduce retries, exponential backoff, and priority queues.
-- Attach metrics/observability (Prometheus, OpenTelemetry) and per-run artifacts.
+### Networking
+- Each simulation worker runs a lightweight WebRTC agent that can publish one video stream.
+- The dashboard calls the API to request the stream. The API returns:
+  - a short-lived, scoped token
+  - the worker’s signaling endpoint
+- The browser creates an offer → a regional signaling service forwards it → the worker responds with an answer.
+- Media flows directly between browser and worker when possible; TURN relays only when needed.
+
+### Security
+- Workers run inside private subnets; no direct public IP exposure.
+- Short-lived per-run tokens ensure the user can only access the stream associated with their simulation.
+- Optionally a service mesh (App Mesh / Istio) can enforce mTLS between internal components.
+
+### Scalability
+- Because simulations are typically 1:1 (user ↔ simulation), we don’t need a large SFU cluster; WebRTC P2P minimizes cost and latency.
+- If multi-viewer streams become necessary in the future, an SFU (Janus, Ion-SFU, LiveKit) could be inserted.
