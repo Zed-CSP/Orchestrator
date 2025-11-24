@@ -1,6 +1,6 @@
 # Palatial Simulation Orchestrator
 
-An end-to-end MVP for queueing, running, and monitoring heavy robotics simulations. The backend exposes a FastAPI-powered orchestrator that enforces a configurable concurrency limit while simulating workers. The frontend is a React + Vite dashboard that lets you submit JSON configs, observe job lifecycles, and cancel or restart runs. A docker-compose stack bootstraps Postgres, the API, and the dashboard with a single command.
+A simulated MVP for queueing, running, and monitoring heavy robotics simulations. The backend exposes a FastAPI-powered orchestrator that enforces a configurable concurrency limit while simulating workers. The frontend is a React + Vite dashboard that lets you submit JSON configs, observe job lifecycles, and cancel or restart runs. A docker-compose stack bootstraps Postgres, the API, and the dashboard with a single command.
 
 ## Table of Contents
 1. [Repository layout](#repository-layout)
