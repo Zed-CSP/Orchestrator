@@ -41,7 +41,7 @@ docker-compose.yml
    ```
 2. Visit http://localhost:5173 to use the UI.
 
-### Docker Compose (API + DB + UI)
+## Running in Docker Compose (API + DB + UI)
 ```bash
 docker compose up --build
 ```
