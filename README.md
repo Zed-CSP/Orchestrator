@@ -22,6 +22,17 @@ frontend/  # React/Vite dashboard (TypeScript)
 docker-compose.yml
 ```
 
+## Running in Docker Compose (API + DB + UI)
+```bash
+docker compose up --build
+```
+- Frontend: http://localhost:4173
+- Backend: http://localhost:8000
+- Override envs as needed when running compose, e.g.
+  ```bash
+  MAX_CONCURRENT_RUNS=5 WORKER_MIN_SECONDS=2 WORKER_MAX_SECONDS=8 docker compose up --build backend
+  ```
+
 ## Running locally (without Docker)
 
 ### Backend API
@@ -52,17 +63,6 @@ docker-compose.yml
    VITE_API_URL=http://localhost:8000 npm run dev -- --host 0.0.0.0 --port 5173
    ```
 2. Visit http://localhost:5173 to use the UI.
-
-## Running in Docker Compose (API + DB + UI)
-```bash
-docker compose up --build
-```
-- Frontend: http://localhost:4173
-- Backend: http://localhost:8000
-- Override envs as needed when running compose, e.g.
-  ```bash
-  MAX_CONCURRENT_RUNS=5 WORKER_MIN_SECONDS=2 WORKER_MAX_SECONDS=8 docker compose up --build backend
-  ```
 
 ## Key environment variables
 
