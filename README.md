@@ -99,18 +99,43 @@ Runs persist to the database. The orchestrator uses async SQLAlchemy sessions pl
 | Worker details modal | Run log modal |
 | ![Dark dashboard](docs/assets/Screenshot%202025-11-23%20at%204.21.56 PM.png) | ![Worker panel](docs/assets/Screenshot%202025-11-23%20at%204.17.43 PM.png) |
 
-## README Q&A
+# README Q&A
 
-### 1. AI usage
+## 1. AI usage
 This project was built end-to-end with heavy assistance from Cursor + GPT-5.1 (for planning, scaffolding, and implementation details). I still reviewed every change, wired the architecture, and ran the frontend build manually, but AI copilots accelerated most boilerplate and some orchestration logic.
 
-### 2. Productionizing to 10,000 concurrent sims across regions
-- **Control plane vs. workers**: Split the orchestrator into a stateless API tier plus a durable queue (e.g., SQS, Google Pub/Sub, or Kafka). The API writes run metadata to Postgres and pushes a message ID into the queue. Regional worker pools (EKS/Kubernetes with autoscaling GPU node groups) pull from the queue and send heartbeats.
-- **Scheduling & locking**: Use advisory locks (`SELECT ... FOR UPDATE SKIP LOCKED`) or distributed locks (e.g., Postgres SKIP LOCKED + at-least-once queue semantics) to prevent duplicate assignments. Each worker would update a `leased_at` timestamp; a supervisor process requeues any job that hasn’t heartbeated after N seconds.
-- **Crash recovery**: Store worker progress + logs in an append-only table (or object storage). If a worker dies mid-run, a watchdog flips the run back to `pending` and increments a retry counter with exponential backoff.
-- **Data partitioning**: Shard metadata by region (or customer) and replicate to a global read model. For 10k concurrent GPUs, use horizontally scalable stores (Aurora, CockroachDB) or event sourcing so API nodes can scale elastically.
+## 2. Productionizing to 10,000 concurrent sims across regions
+At scale, the orchestrator needs to evolve into a distributed system with a clear separation between control plane, execution plane, and storage.
 
-### 3. Streaming Isaac Sim video securely
+### Architecture
+- The API becomes a stateless control plane that records intent (create run, cancel, restart) and persists run metadata.
+- A durable, horizontally scalable queue (SQS, Pub/Sub, or Kafka) becomes the entry point for work distribution.
+- Regional GPU worker pools consume messages, acquire leases, run simulations, and report status via heartbeats.
+- Observability (metrics + logs) becomes essential for managing large GPU fleets.
+
+### Scheduling and Locking
+- Each worker takes ownership of a job using:
+-- Postgres advisory locks, or
+-- 'SELECT … FOR UPDATE SKIP LOCKED' to prevent double assignment.
+- Workers periodically heartbeat a leased_at timestamp; if heartbeats stop, a supervisor resets the run to pending and requeues it.
+- The system enforces idempotent job execution, so retrying a job after a crash is safe.
+
+### Reliability and Failure Recovery
+- Job progress and artifacts are stored durably (DB + object storage).
+- A retry policy with exponential backoff prevents flapping jobs from starving the queue.
+- A watchdog process reclaims abandoned tasks and can drain or rebalance jobs across regions if a GPU cluster becomes unhealthy.
+
+### Data Partitioning
+- Metadata is sharded by region or customer to reduce contention.
+- A global read replica (or event-sourced read model) aggregates run histories for the dashboard without coupling regions together.
+
+### Autoscaling
+- Queue depth and job age are primary signals for scaling GPU nodes and orchestrator workers.
+-- This ensures cost-efficient scaling while guaranteeing high throughput.
+
+Overall, this style of system would become highly elastic, resilient to worker failures, and capable of coordinating thousands of concurrent GPU simulations across multiple AWS regions.
+
+## 3. Streaming Isaac Sim video securely
 - **Transport**: Use WebRTC for low-latency, encrypted media. Each simulation worker runs a lightweight SFU/agent that publishes the video stream. Control messages (offer/answer, ICE) flow through the orchestrator/API.
 - **Networking**: Workers sit in private subnets. A turn/stun cluster (Coturn) with AWS Global Accelerator terminates user connectivity and relays traffic when direct peer-to-peer isn’t possible. The orchestrator generates short-lived tokens (per run) that authorize a user to connect to exactly one worker stream via WebRTC data channels.
 - **Routing**: When a user opens the dashboard, it calls the API, which returns the worker’s signaling endpoint + token. The frontend initiates a WebRTC offer to a regional signaling service (gRPC/WebSocket). That service forwards to the proper worker (over a secure service mesh like AWS App Mesh or Istio) and the worker responds with an answer. Media flows directly (or via TURN) so the video never transits the API servers, keeping latency and cost low.
