@@ -2,6 +2,18 @@
 
 An end-to-end MVP for queueing, running, and monitoring heavy robotics simulations. The backend exposes a FastAPI-powered orchestrator that enforces a configurable concurrency limit while simulating workers. The frontend is a React + Vite dashboard that lets you submit JSON configs, observe job lifecycles, and cancel or restart runs. A docker-compose stack bootstraps Postgres, the API, and the dashboard with a single command.
 
+## Table of Contents
+1. [Repository layout](#repository-layout)
+2. [Running locally (without Docker)](#running-locally-without-docker)
+3. [Running in Docker Compose (API + DB + UI)](#running-in-docker-compose-api--db--ui)
+4. [Key environment variables](#key-environment-variables)
+5. [API surface](#api-surface)
+6. [Frontend features](#frontend-features)
+7. [Screenshots](#screenshots)
+8. [README Q&A](#readme-qa)
+9. [Testing / validation](#testing--validation)
+10. [Future improvements](#future-improvements)
+
 ## Repository layout
 
 ```
