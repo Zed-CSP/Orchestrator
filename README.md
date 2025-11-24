@@ -80,6 +80,13 @@ Runs persist to the database. The orchestrator uses async SQLAlchemy sessions pl
 - Action buttons per row for cancel/restart with optimistic locking on the button being clicked.
 - Toast-style feedback plus manual refresh.
 
+### Screenshots
+| Dashboard (light) | Dashboard (dark) |
+| --- | --- |
+| ![Light dashboard](docs/assets/Screenshot%202025-11-23%20at%204.16.15 PM.png) | ![Dark dashboard](docs/assets/Screenshot%202025-11-23%20at%204.18.06 PM.png) |
+| Worker details modal | Run log modal |
+| ![Worker panel](docs/assets/Screenshot%202025-11-23%20at%204.17.43 PM.png) | ![Log modal](docs/assets/Screenshot%202025-11-23%20at%204.18.06 PM.png) |
+
 ## README Q&A
 
 ### 1. AI usage
